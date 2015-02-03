@@ -38,6 +38,8 @@ Object.assign(Polygons, {
         ];
 
         // Optional texture UVs
+        // this.texcoords = true; // TODO: remove optional texcoords? or just default true?
+        // this.defines['TEXTURE_COORDS'] = true;
         if (this.texcoords) {
             this.defines['TEXTURE_COORDS'] = true;
 
@@ -46,6 +48,44 @@ Object.assign(Polygons, {
         }
 
         this.vertex_layout = new VertexLayout(attribs);
+    },
+
+    // Override
+    startData () {
+        let data = Style.startData.apply(this);
+
+        data.textures = {}; // maps texture id to mesh index
+        data.uniforms = {};
+
+        return data;
+    },
+
+    // Override
+    endData (tile_data) {
+        return Style.endData.apply(this, arguments).then(data => {
+            data.uniforms = tile_data.uniforms;
+            return data;
+        });
+    },
+
+    meshForFeature (feature, style, tile_data) {
+        if (style.texture) {
+            if (!tile_data.textures[style.texture]) {
+                let index = tile_data.meshes.length;
+                tile_data.textures[style.texture] = index;
+                tile_data.meshes[index] = this.vertex_layout.createVertexData();
+                tile_data.uniforms[index] = {
+                    u_texture: style.texture,
+                    u_texture_active: true
+                };
+
+                return tile_data.meshes[index];
+            }
+            return tile_data.meshes[tile_data.textures[style.texture]];
+        }
+        else {
+            return Style.meshForFeature.apply(this, arguments);
+        }
     },
 
     _parseFeature (feature, rule_style, context) {

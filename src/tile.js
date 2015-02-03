@@ -49,12 +49,13 @@ export default class Tile {
     static create(spec) { return new Tile(spec); }
 
     freeResources() {
-        if (this != null && this.meshes != null) {
-            for (var p in this.meshes) {
-                this.meshes[p].destroy();
-            }
-        }
-        this.meshes = {};
+        // TODO: fix for multiple meshes per style
+        // if (this != null && this.meshes != null) {
+        //     for (var p in this.meshes) {
+        //         this.meshes[p].destroy();
+        //     }
+        // }
+        // this.meshes = {};
     }
 
     destroy() {
@@ -160,7 +161,13 @@ export default class Tile {
         for (let style_name in tile_data) {
             let style = styles[style_name];
             queue.push(style.endData(tile_data[style_name]).then((data) => {
-                if (data) {
+                if (data.meshes.length > 0) {
+                    // tile.vertex_data[style_name] = {
+                    //     meshes: data.meshes.map(m => m.buffer)
+                    // };
+                    // data.meshes.forEach(m => tile.vertex_data[style_name].meshes.push(m.buffer));
+                    // tile_data[style_name].meshes[0].buffer;
+
                     tile.vertex_data[style_name] = data;
 
                     // Track min/max order range
@@ -232,14 +239,20 @@ export default class Tile {
 
         // Create VBOs
         for (var s in vertex_data) {
-            this.meshes[s] = styles[s].makeMesh(vertex_data[s]);
+            this.meshes[s] = vertex_data[s].meshes.map((m, i) => {
+                // TODO: uniform attachment is very specific/coupled, should styles implement their own
+                // final mesh instantiation so they can incorporate style-specific data?
+                return styles[s].makeMesh(m, {
+                    uniforms: (vertex_data[s].uniforms && vertex_data[s].uniforms[i])
+                });
+            });
         }
 
         this.debug.geometries = 0;
         this.debug.buffer_size = 0;
         for (var p in this.meshes) {
-            this.debug.geometries += this.meshes[p].geometry_count;
-            this.debug.buffer_size += this.meshes[p].vertex_data.byteLength;
+            this.debug.geometries += this.meshes[p].reduce((sum, m) => sum + m.geometry_count, 0);
+            this.debug.buffer_size += this.meshes[p].reduce((sum, m) => sum + m.vertex_data.byteLength, 0);
         }
         this.debug.geom_ratio = (this.debug.geometries / this.debug.features).toFixed(1);
 

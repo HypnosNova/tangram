@@ -140,9 +140,9 @@ styles:
             transforms:
                 fragment: color.rgb += vec3(gl_FragCoord.x / u_resolution.x, 0.0, gl_FragCoord.y / u_resolution.y);
 
-
     icons:
         extends: polygons
+        # extends: sprites
         animated: true # only needed for bouncy effect
         texcoords: true
         texture:
@@ -156,27 +156,43 @@ styles:
                 restaurant: [0, 777, 32, 32]
                 cafe: [0, 814, 32, 32]
                 museum: [0, 518, 32, 32]
-        shaders:
-            uniforms:
-                bouncy: true
-            transforms:
-                vertex: |
-                    // Bouncy icons
-                    if (bouncy) {
-                        position.y += sin(v_world_position.y + u_time*3.) * 10.;
-                    }
-                fragment: |
-                    //color.rgb /= lighting; // reverse lighting hack (replace w/shader lighting block/defines)
+        # shaders:
+        #     uniforms:
+        #         bouncy: true
+        #     transforms:
+        #         vertex: |
+        #             // Bouncy icons
+        #             if (bouncy) {
+        #                 position.y += sin(v_world_position.y + u_time*3.) * 10.;
+        #             }
+        #         fragment: |
+        #             //color.rgb /= lighting; // reverse lighting hack (replace w/shader lighting block/defines)
 
-    uv_test:
-        extends: polygons
+    # uv_test:
+    #     extends: polygons
+    # polygons:
+    #     texcoords: true
+    #     shaders:
+    #         transforms:
+    #             fragment: |
+    #                 color.rgb = vec3(v_texcoord.xy, 0.);
+    #                 //color.rgb = vec3(v_texcoord.x, mod(v_texcoord.y + u_time/2., 1.), 0.);
+    #                 //color.rgb = texture2D(u_texture, uv).rgb;
+
+    polygons:
         texcoords: true
         shaders:
+            uniforms:
+                u_texture_active: false
             transforms:
+                globals: |
+                    uniform sampler2D u_texture;
                 fragment: |
-                    color.rgb = vec3(v_texcoord.xy, 0.);
-                    //color.rgb = vec3(v_texcoord.x, mod(v_texcoord.y + u_time/2., 1.), 0.);
-                    //color.rgb = texture2D(u_texture, uv).rgb;
+                    // color.rgb = vec3(v_texcoord.xy, 0.);
+                    if (u_texture_active) {
+                        color = texture2D(u_texture, v_texcoord.xy);
+                        //color = texture2D(u_texture, v_world_position.xy * 100.);
+                    }
 
     # dynamic uniform tests
     # polygons:
@@ -453,6 +469,8 @@ layers:
             color: [.6, .6, .6]
             extrude: function () { return ((zoom >= 15 && feature.height > 20) || zoom >= 16) }
 
+            texture: demos/images/sunset.jpg
+
         # buildingsOfInterest:
         #     filter:
         #         any:
@@ -465,6 +483,7 @@ layers:
             filter: { name: true }
             style:
                 color: [.6, .2, .2]
+                texture: demos/images/matball01.jpg
 
             namedKindBuildings:
                 filter: { kind: true }
@@ -476,37 +495,63 @@ layers:
             style:
                 color: [.2, .2, .6]
 
-    pois:
-        geometry:
-            source: osm
-            filter: pois
+    # pois:
+    #     geometry:
+    #         source: osm
+    #         filter: pois
 
-        filter: { name: true }
-        style:
-            name: points
-            size: 10px
+    #     filter: { name: true }
+    #     style:
+    #         # name: points
+    #         name: icons
+    #         # size: 10px
 
-            # name: icons
-            # sprite: tree
-            # size: [[13, 16px], [14, 24px], [15, 32px]]
+    #         # name: icons
+    #         # sprite: tree
+    #         # size: [[13, 16px], [14, 24px], [15, 32px]]
 
-            # visible: false
-            order: 5
-            interactive: true
-            color: [1, 1, 0]
+    #         size: 32 #[32, 64] #px
+    #         angle: 90
+    #         scale: 1
+    #         color: [1, 0, 0]
+
+    #         # visible: false
+    #         order: 5
+    #         interactive: true
+
+    # pois:
+    # labels:
+    #     geometry:
+    #         source: osm
+    #         filter: pois
+
+    #     filter: { name: true }
+    #     style:
+    #         name: text
+    #         size: 10px
+
+    #         # name: icons
+    #         # sprite: tree
+    #         # size: [[13, 16px], [14, 24px], [15, 32px]]
+
+    #         # visible: false
+    #         order: 5
+    #         # order: function() { if (Math.random() > .5) { return 5; } else { return 3.9; } }
+    #         interactive: true
+    #         color: [1, 1, 0]
 
         # examples of different icons mapped to faeture properties
-        restaurant:
-            filter: { kind: restaurant }
-            style:
-                sprite: restaurant
+        # restaurant:
+        #     filter: { kind: restaurant }
+        #     style:
+        #         sprite: restaurant
 
-        cafe:
-            filter: { kind: cafe }
-            style:
-                sprite: cafe
+        # cafe:
+        #     filter: { kind: cafe }
+        #     style:
+        #         sprite: cafe
 
-        culture:
-            filter: { kind: [museum, library] }
-            style:
-                sprite: museum
+        # culture:
+        #     filter: { kind: [museum, library] }
+        #     style:
+        #         sprite: museum

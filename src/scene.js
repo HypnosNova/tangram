@@ -544,8 +544,8 @@ Scene.prototype.renderStyle = function (style, program) {
             program.uniform('Matrix4fv', 'u_modelView', false, this.modelViewMatrix32);
 
             // Render tile
-            tile.meshes[style].render();
-            render_count += tile.meshes[style].geometry_count;
+            tile.meshes[style].forEach(m => m.render());
+            render_count += tile.meshes[style].reduce((sum, g) => sum + g.geometry_count, 0);
         }
     }
 

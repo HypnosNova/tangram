@@ -59,14 +59,30 @@ export var Style = {
     // Returns an object to hold feature data (for a tile or other object)
     startData () {
         return {
-            vertex_data: null,
+            meshes: [],
             order: { min: Infinity, max: -Infinity } // reset to track order range within tile
         };
     },
 
     // Finalizes an object holding feature data (for a tile or other object)
     endData (tile_data) {
-        return Promise.resolve(tile_data.vertex_data && tile_data.vertex_data.end().buffer);
+        // return Promise.resolve(tile_data.vertex_data && tile_data.vertex_data.end().buffer);
+        // if (tile_data.meshes[0]) {
+        //     tile_data.meshes[0].end();
+        // }
+        // tile_data.meshes.forEach(m => m.end());
+
+        return Promise.resolve({
+            meshes: tile_data.meshes.map(m => { m.end(); return m.buffer })
+        });
+    },
+
+    meshForFeature (feature, style, tile_data) {
+        // First feature in this render style?
+        if (!tile_data.meshes[0]) {
+            tile_data.meshes[0] = this.vertex_layout.createVertexData();
+        }
+        return tile_data.meshes[0];
     },
 
     addFeature (feature, rule, context, tile_data) {
@@ -85,28 +101,26 @@ export var Style = {
             tile_data.order.max = style.order;
         }
 
-        // First feature in this render style?
-        if (!tile_data.vertex_data) {
-            tile_data.vertex_data = this.vertex_layout.createVertexData();
-        }
+        // Find or create mesh data holder
+        let mesh = this.meshForFeature(feature, style, tile_data);
 
         if (feature.geometry.type === 'Polygon') {
-            this.buildPolygons([feature.geometry.coordinates], style, tile_data.vertex_data);
+            this.buildPolygons([feature.geometry.coordinates], style, mesh);
         }
         else if (feature.geometry.type === 'MultiPolygon') {
-            this.buildPolygons(feature.geometry.coordinates, style, tile_data.vertex_data);
+            this.buildPolygons(feature.geometry.coordinates, style, mesh);
         }
         else if (feature.geometry.type === 'LineString') {
-            this.buildLines([feature.geometry.coordinates], style, tile_data.vertex_data);
+            this.buildLines([feature.geometry.coordinates], style, mesh);
         }
         else if (feature.geometry.type === 'MultiLineString') {
-            this.buildLines(feature.geometry.coordinates, style, tile_data.vertex_data);
+            this.buildLines(feature.geometry.coordinates, style, mesh);
         }
         else if (feature.geometry.type === 'Point') {
-            this.buildPoints([feature.geometry.coordinates], style, tile_data.vertex_data);
+            this.buildPoints([feature.geometry.coordinates], style, mesh);
         }
         else if (feature.geometry.type === 'MultiPoint') {
-            this.buildPoints(feature.geometry.coordinates, style, tile_data.vertex_data);
+            this.buildPoints(feature.geometry.coordinates, style, mesh);
         }
     },
 
@@ -265,8 +279,8 @@ export var Style = {
         this.preloadTextures();
     },
 
-    makeMesh (vertex_data) {
-        return new VBOMesh(this.gl, vertex_data, this.vertex_layout);
+    makeMesh (vertex_data, options) {
+        return new VBOMesh(this.gl, vertex_data, this.vertex_layout, options);
     },
 
     compile () {
