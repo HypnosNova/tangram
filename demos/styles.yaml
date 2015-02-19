@@ -554,72 +554,70 @@ layers:
 
         filter: { name: true }
 
-        major_road:
-            #filter: { kind: major_road }
-            style:
-                name: text
-                order: 5
-                font: 
-                    size: 14px
-                    typeface: Futura 
-                    fill: [0.9, 0.9, 0.9] 
-                    stroke: [.31, .33, .31] 
+        style:
+            name: text
+            order: 5
+            font:
+                size: 12px
+                typeface: Futura
+                fill: [0.8, 0, 0]
+                stroke: [1, 1, 1]
 
     # pois:
-    labels:
-        geometry:
-            source: osm
-            filter: pois
+    # labels:
+    #     geometry:
+    #         source: osm
+    #         filter: pois
 
-        filter: { name: true }
+    #     filter: { name: true }
 
-        style:
-            # name: points
-            # size: [[12, 6px], [13, 10px]]
+    #     style:
+    #         # name: points
+    #         # size: [[12, 6px], [13, 10px]]
 
-            font: 
-                size: 11px
-                typeface: Helvetica 
+    #         font:
+    #             size: 11px
+    #             typeface: Helvetica
 
-            name: text
+    #         name: text
 
-            # name: icons
-            # sprite: tree
-            # size: [32px, 32px]
-            # size: [[13, 16px], [14, 24px], [15, 32px]]
-            # size: function() { return (parseInt(feature.id, 16) % 100); }
+    #         # name: icons
+    #         # sprite: tree
+    #         # size: [32px, 32px]
+    #         # size: [[13, 16px], [14, 24px], [15, 32px]]
+    #         # size: function() { return (parseInt(feature.id, 16) % 100); }
 
-            angle: 0
-            # angle: function() { return (parseInt(feature.id, 16) % 360); }
-            # scale: 1
+    #         angle: 0
+    #         # angle: function() { return (parseInt(feature.id, 16) % 360); }
+    #         # scale: 1
 
-            # visible: false
-            order: 5
-            # order: function() { if (Math.random() > .5) { return 5; } else { return 3.9; } }
-            interactive: true
+    #         # visible: false
+    #         order: 5
+    #         # order: function() { if (Math.random() > .5) { return 5; } else { return 3.9; } }
+    #         interactive: true
 
-        # z17:
-        #     filter: { scene.zoom: { min: 17, max: 18 } }
-        #     style:
-        #         scale: 3
+    #     # z17:
+    #     #     filter: { scene.zoom: { min: 17, max: 18 } }
+    #     #     style:
+    #     #         scale: 3
 
-        # z18:
-        #     filter: { scene.zoom: { min: 18 } }
-        #     style:
-        #         size: [64, 64] #px
+    #     # z18:
+    #     #     filter: { scene.zoom: { min: 18 } }
+    #     #     style:
+    #     #         size: [64, 64] #px
 
-        # examples of different icons mapped to feature properties
-        restaurant:
-            filter: { kind: restaurant }
-            style:
-                sprite: restaurant
+    #     # examples of different icons mapped to feature properties
+    #     restaurant:
+    #         filter: { kind: restaurant }
+    #         style:
+    #             sprite: restaurant
 
-        cafe:
-            filter: { kind: cafe }
-            style:
-                sprite: cafe
+    #     cafe:
+    #         filter: { kind: cafe }
+    #         style:
+    #             sprite: cafe
 
-        culture:
-            filter: { kind: [museum, library] }
-            style:
-                sprite: museum
+    #     culture:
+    #         filter: { kind: [museum, library] }
+    #         style:
+    #             sprite: museum

@@ -14,6 +14,7 @@ export default class Label {
             bbox: []
         });
 
+        this.id = Label.id++;
         this.text = text;
         this.size = size;
 
@@ -28,9 +29,6 @@ export default class Label {
             this.position = position;
             this.bbox = this.computeBBox();
         }
-
-        this.bbox["text"] = text;
-        this.bbox["center"] = this.position;
     }
 
     middleSegment(segment) {
@@ -41,28 +39,41 @@ export default class Label {
     }
 
     occluded (bboxes) {
-        bboxes.push(this.bbox);
+        // bboxes.push(this.bbox);
 
         let intersect = false;
 
-        let res = boxIntersect(bboxes, (i, j) => {
-            if (bboxes[i] === this.bbox || bboxes[j] === this.bbox) {
-                let index = bboxes.indexOf(this.bbox);
+        // let res = boxIntersect(bboxes, (i, j) => {
+        //     if (bboxes[i] === this.bbox || bboxes[j] === this.bbox) {
+        //         let index = bboxes.indexOf(this.bbox);
 
-                if (index > -1) {
-                    // remove that bbox
-                    bboxes.splice(index, 1);
-                }
+        //         if (index > -1) {
+        //             // remove that bbox
+        //             bboxes.splice(index, 1);
+        //         }
 
-                return true; // early exit
-            }
-        });
+        //         return true; // early exit
+        //     }
+        // });
 
-        if (res !== undefined) {
-            intersect = true;
+        // let res;
+
+        if (bboxes.length > 0) {
+            boxIntersect([this.bbox], bboxes, (i, j) => {
+                console.log(`label ${this.text} (${this.id}) intersects ${Label.bbox_labels[j].text} (${Label.bbox_labels[j].id}) (${i}, ${j})`);
+                intersect = true;
+                return true;
+            });
+        }
+
+        if (!intersect) {
+            console.log(`label ${this.text} (${this.id}) added`);
+            Label.bbox_labels[bboxes.length] = this;
+            bboxes.push(this.bbox);
         }
 
         return intersect;
+        // return false;
     }
 
     inTileBounds () {
@@ -71,7 +82,7 @@ export default class Label {
 
         if (!this.pointInTile(min) || !this.pointInTile(max)) {
             return false;
-        } 
+        }
 
         return true;
     }
@@ -141,7 +152,10 @@ export default class Label {
         if (this.lines && !this.fitToSegment()) {
             while (!this.fitToSegment()) {
                 if (!this.moveNextSegment()) {
-                    return true;
+                    console.log(`warning label ${this.text}: could not fit in any line segment`);
+                    break;
+                    // console.log(`discarding label ${this.text}: could not fit in any line segment`);
+                    // return true;
                 }
             }
         }
@@ -149,7 +163,7 @@ export default class Label {
         let discard = false;
 
         // perform specific styling rule, should we keep the label in tile bounds?
-        if (keep_in_tile) { 
+        if (keep_in_tile) {
             let in_tile = this.inTileBounds();
 
             if (!in_tile && this.lines && move_in_tile) {
@@ -157,24 +171,28 @@ export default class Label {
 
                 // move this label until we found a line we can fit in
                 while (!in_tile && !fits_to_segment) {
-                    if (!this.moveNextSegment()) { 
+                    if (!this.moveNextSegment()) {
                         // we can't move further in this line, just break
                         break;
-                    } 
+                    }
 
                     in_tile = this.inTileBounds();
                     fits_to_segment = this.fitToSegment();
                 }
 
                 discard = !in_tile || !fits_to_segment;
-            } else if (!in_tile) { 
+                if (discard) {
+                    console.log(`discarding label ${this.text}: could not find big enough segment to move into tile bounds`);
+                }
+            } else if (!in_tile) {
                 // we didn't want to move at all, just discard since we're out of tile bounds
+                console.log(`discarding label ${this.text}: was not in tile bounds`);
                 return true;
             }
         }
 
         // should we discard? if not, just make occlusion test
-        return discard || this.occluded(bboxes); 
+        return discard || this.occluded(bboxes);
     }
 
     computeBBox () {
@@ -182,9 +200,9 @@ export default class Label {
         let half_merc_height = this.mercatorHeight() * 0.5;
 
         return [
-            this.position[0] - half_merc_width, 
-            this.position[1] - half_merc_height, 
-            this.position[0] + half_merc_width, 
+            this.position[0] - half_merc_width,
+            this.position[1] - half_merc_height,
+            this.position[0] + half_merc_width,
             this.position[1] + half_merc_height
         ];
     }
@@ -192,7 +210,7 @@ export default class Label {
     computeOBBox (size) {
         let upp = Geo.units_per_pixel;
 
-        let half_merc_width = this.size[0] * upp * 0.5; 
+        let half_merc_width = this.size[0] * upp * 0.5;
         let half_merc_height = this.size[1] * upp * 0.5;
 
         let c = Math.cos(this.angle);
@@ -211,4 +229,6 @@ export default class Label {
         ];
     }
 }
- 
+
+Label.id = 0;
+Label.bbox_labels = {}; // map bbox index to label object
