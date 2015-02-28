@@ -2,12 +2,11 @@
 
 import {StyleParser} from './style_parser';
 import FeatureSelection from '../selection';
-
-import GLProgram from '../gl/gl_program';
-import GLGeometry from '../gl/gl_geom';
-import {GLBuilders} from '../gl/gl_builders';
-import GLTexture from '../gl/gl_texture';
-import {MethodNotImplemented} from '../errors';
+import ShaderProgram from '../gl/shader_program';
+import VBOMesh from '../gl/vbo_mesh';
+import Builders from './builders';
+import Texture from '../gl/texture';
+import {MethodNotImplemented} from '../utils/errors';
 import shaderSources from '../gl/shader_sources'; // built-in shaders
 
 import log from 'loglevel';
@@ -61,13 +60,19 @@ export var Style = {
     startData () {
         return {
             vertex_data: null,
+            uniforms: null,
             order: { min: Infinity, max: -Infinity } // reset to track order range within tile
         };
     },
 
     // Finalizes an object holding feature data (for a tile or other object)
     endData (tile_data) {
-        return Promise.resolve(tile_data.vertex_data && tile_data.vertex_data.end().buffer);
+        if (tile_data.vertex_data) {
+            // Only keep final byte buffer
+            tile_data.vertex_data.end();
+            tile_data.vertex_data = tile_data.vertex_data.buffer;
+        }
+        return Promise.resolve(tile_data);
     },
 
     addFeature (feature, rule, context, tile_data) {
@@ -91,23 +96,27 @@ export var Style = {
             tile_data.vertex_data = this.vertex_layout.createVertexData();
         }
 
-        if (feature.geometry.type === 'Polygon') {
-            this.buildPolygons([feature.geometry.coordinates], style, tile_data.vertex_data);
+        this.buildGeometry(feature.geometry, style, tile_data.vertex_data);
+    },
+
+    buildGeometry (geometry, style, vertex_data) {
+        if (geometry.type === 'Polygon') {
+            this.buildPolygons([geometry.coordinates], style, vertex_data);
         }
-        else if (feature.geometry.type === 'MultiPolygon') {
-            this.buildPolygons(feature.geometry.coordinates, style, tile_data.vertex_data);
+        else if (geometry.type === 'MultiPolygon') {
+            this.buildPolygons(geometry.coordinates, style, vertex_data);
         }
-        else if (feature.geometry.type === 'LineString') {
-            this.buildLines([feature.geometry.coordinates], style, tile_data.vertex_data);
+        else if (geometry.type === 'LineString') {
+            this.buildLines([geometry.coordinates], style, vertex_data);
         }
-        else if (feature.geometry.type === 'MultiLineString') {
-            this.buildLines(feature.geometry.coordinates, style, tile_data.vertex_data);
+        else if (geometry.type === 'MultiLineString') {
+            this.buildLines(geometry.coordinates, style, vertex_data);
         }
-        else if (feature.geometry.type === 'Point') {
-            this.buildPoints([feature.geometry.coordinates], style, tile_data.vertex_data);
+        else if (geometry.type === 'Point') {
+            this.buildPoints([geometry.coordinates], style, vertex_data);
         }
-        else if (feature.geometry.type === 'MultiPoint') {
-            this.buildPoints(feature.geometry.coordinates, style, tile_data.vertex_data);
+        else if (geometry.type === 'MultiPoint') {
+            this.buildPoints(geometry.coordinates, style, vertex_data);
         }
     },
 
@@ -204,7 +213,7 @@ export var Style = {
         if (this.textures) {
             for (var name in this.textures) {
                 var { url, filtering, repeat, sprites } = this.textures[name];
-                var texture = new GLTexture(this.gl, this.textureName(name), { sprites });
+                var texture = new Texture(this.gl, this.textureName(name), { sprites });
 
                 texture.load(url, { filtering, repeat });
             }
@@ -213,7 +222,7 @@ export var Style = {
 
     // Pre-calc sprite regions for a texture sprite in UV [0, 1] space
     calculateTextureSprites (name) {
-        var texture = GLTexture.textures[this.textureName(name)];
+        var texture = Texture.textures[this.textureName(name)];
         if (texture.sprites) {
             this.texture_sprites = this.texture_sprites || {};
             this.texture_sprites[name] = {};
@@ -222,7 +231,7 @@ export var Style = {
                 var sprite = texture.sprites[s];
 
                 // Map [0, 0] to [1, 1] coords to the appropriate sprite sub-area of the texture
-                this.texture_sprites[name][s] = GLBuilders.getTexcoordsForSprite(
+                this.texture_sprites[name][s] = Builders.getTexcoordsForSprite(
                     [sprite[0], sprite[1]],
                     [sprite[2], sprite[3]],
                     [texture.width, texture.height]
@@ -266,8 +275,8 @@ export var Style = {
         this.preloadTextures();
     },
 
-    makeGLGeometry (vertex_data) {
-        return new GLGeometry(this.gl, vertex_data, this.vertex_layout);
+    makeMesh (vertex_data, { uniforms } = {}) {
+        return new VBOMesh(this.gl, vertex_data, this.vertex_layout, { uniforms });
     },
 
     compile () {
@@ -294,7 +303,7 @@ export var Style = {
 
         // Create shaders
         try {
-            this.program = new GLProgram(
+            this.program = new ShaderProgram(
                 this.gl,
                 shaderSources[this.vertex_shader_key],
                 shaderSources[this.fragment_shader_key],
@@ -307,10 +316,10 @@ export var Style = {
             );
 
             if (this.selection) {
-                this.selection_program = new GLProgram(
+                this.selection_program = new ShaderProgram(
                     this.gl,
                     shaderSources[this.vertex_shader_key],
-                    shaderSources['selection_fragment'],
+                    shaderSources['gl/shaders/selection_fragment'],
                     {
                         name: (this.name + ' (selection)'),
                         defines: selection_defines,
@@ -333,7 +342,14 @@ export var Style = {
         this.compiled = true;
     },
 
-    /** TODO: could probably combine and generalize this with similar method in GLProgram
+    // Add a shader transform
+    addShaderTransform (key, ...transforms) {
+        this.shaders.transforms = this.shaders.transforms || {};
+        this.shaders.transforms[key] = this.shaders.transforms[key] || [];
+        this.shaders.transforms[key].push(...transforms);
+    },
+
+    /** TODO: could probably combine and generalize this with similar method in ShaderProgram
      * (list of define objects that inherit from each other)
      */
     buildDefineList () {
@@ -360,10 +376,12 @@ export var Style = {
 
     // Set style uniforms on currently bound program
     setUniforms () {
-        var program = GLProgram.current;
-        if (program != null && this.shaders != null && this.shaders.uniforms != null) {
-            program.setUniforms(this.shaders.uniforms);
+        var program = ShaderProgram.current;
+        if (!program) {
+            return;
         }
+
+        program.setUniforms(this.shaders && this.shaders.uniforms, true); // reset texture unit to 0
     },
 
     update () {

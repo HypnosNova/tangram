@@ -47,8 +47,9 @@
         osm_debug = false,
         locations = {
             'London': [51.508, -0.105, 15],
-            'New York': [40.70531887544228, -74.00976419448853, 16],
-            'Seattle': [47.609722, -122.333056, 15]
+            'New York': [40.705302608941324,-74.00976419448854,16],
+            'Seattle': [47.609722, -122.333056, 15],
+            'Shanghai': [31.22337141316801,121.32202148437501,9],
         }, rS, url_hash, map_start_location, url_ui, url_style;
 
 
@@ -102,7 +103,7 @@
         }
 
         // Get location from URL
-        map_start_location = locations['New York'];
+        map_start_location = locations['Shanghai'];
 
         if (url_hash.length === 3) {
             map_start_location = url_hash.slice(0, 3);
@@ -603,7 +604,7 @@
         var layer_gui = gui.addFolder('Layers');
         var layer_controls = {};
         Object.keys(layer.scene.config.layers).forEach(function(l) {
-            if (layer.scene.config.layers[l] == null) {
+            if (!layer.scene.config.layers[l] || !layer.scene.config.layers[l].style) {
                 return;
             }
 

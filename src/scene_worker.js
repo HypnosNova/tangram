@@ -1,15 +1,15 @@
 /*jshint worker: true*/
-import Utils from './utils';
-import WorkerBroker from './worker_broker'; // jshint ignore:line
-import {StyleParser} from './styles/style_parser';
-import {StyleManager} from './styles/style_manager';
+import Utils from './utils/utils';
+import WorkerBroker from './utils/worker_broker'; // jshint ignore:line
 import Scene  from './scene';
 import Tile from './tile';
 import TileSource from './tile_source.js';
 import FeatureSelection from './selection';
-import {parseRules} from './rule';
-import {GLBuilders} from './gl/gl_builders';
-import GLTexture from './gl/gl_texture';
+import {StyleParser} from './styles/style_parser';
+import {StyleManager} from './styles/style_manager';
+import {parseRules} from 'unruly';
+import Builders from './styles/builders';
+import Texture from './gl/texture';
 
 export var SceneWorker = {
     sources: {},
@@ -27,7 +27,7 @@ if (Utils.isWorkerThread) {
     SceneWorker.worker = self;
 
     // TODO: sync render style state between main thread and worker
-    GLBuilders.setTileScale(Scene.tile_scale);
+    Builders.setTileScale(Scene.tile_scale);
 
     // Initialize worker
     SceneWorker.worker.init = function (worker_id) {
@@ -60,9 +60,8 @@ if (Utils.isWorkerThread) {
 
         // Parse each top-level layer as a separate rule tree
         // TODO: find a more graceful way to incorporate this
-        for (layer in SceneWorker.config.layers) {
-            SceneWorker.rules[layer] = parseRules({ [layer]: SceneWorker.config.layers[layer] });
-        }
+
+        SceneWorker.rules =  parseRules(SceneWorker.config.layers);
 
         // Sync tetxure info from main thread
         SceneWorker.syncing_textures = SceneWorker.syncTextures();
@@ -217,7 +216,7 @@ if (Utils.isWorkerThread) {
 
         SceneWorker.log('trace', 'sync textures to worker:', textures);
         if (textures.length > 0) {
-            return GLTexture.syncTexturesToWorker(textures);
+            return Texture.syncTexturesToWorker(textures);
         }
         return Promise.resolve();
     };
